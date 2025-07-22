@@ -1,0 +1,7 @@
+channels-redis==4.1.0
+daphne==4.0.0
+djangorestframework==3.14.0
+pillow==11.3.0
+pip==24.0
+pyOpenSSL==25.1.0
+service-identity==24.2.0

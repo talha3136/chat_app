@@ -1,0 +1,374 @@
+{% extends 'base.html' %}
+
+{% load static %}
+{% block content %}
+<div class="container-fluid h-100">
+    <div class="row h-100">
+        <!-- Sidebar -->
+        <div class="col-md-4 col-lg-3 p-0 sidebar">
+            <div class="d-flex flex-column h-100">
+                <!-- User Profile -->
+                <div class="p-3 bg-success text-white d-flex align-items-center">
+                    <div class="position-relative me-3">
+                        <img src="https://via.placeholder.com/40" class="rounded-circle" alt="Profile">
+                        <span class="online-dot"></span>
+                    </div>
+                    <h5 class="mb-0">{{ request.user.username }}</h5>
+                    <div class="ms-auto">
+                        <button class="btn btn-sm btn-light" id="logout-btn">
+                            <i class="fas fa-sign-out-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Search -->
+                <div class="p-2 bg-light">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-0">
+                            <i class="fas fa-search text-muted"></i>
+                        </span>
+                        <input type="text" class="form-control border-0 bg-white" placeholder="Search or start new chat">
+                    </div>
+                </div>
+                
+                <!-- Online Users -->
+                <div class="p-2">
+                    <div class="d-flex overflow-auto">
+                        {% for user in online_users %}
+                        <div class="text-center mx-2">
+                            <div class="position-relative mb-1">
+                                <img src="https://via.placeholder.com/50" class="rounded-circle" alt="{{ user.username }}">
+                                <span class="online-dot"></span>
+                            </div>
+                            <small>{{ user.username }}</small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Chat List -->
+                <div class="contact-list">
+                    <div class="list-group list-group-flush">
+                        {% for room in chat_rooms %}
+                        <a href="#" class="list-group-item list-group-item-action contact-item" data-room-id="{{ room.id }}">
+                            <div class="d-flex align-items-center">
+                                <div class="position-relative me-3">
+                                    <img src="https://via.placeholder.com/50" class="rounded-circle" alt="Contact">
+                                    <span class="online-dot"></span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0">{{ room.name }}</h6>
+                                        <small class="text-muted">10:30 AM</small>
+                                    </div>
+                                    <p class="mb-0 text-truncate text-muted" style="max-width: 200px;">
+                                        {% if room.last_message %}{{ room.last_message.content }}{% else %}No messages yet{% endif %}
+                                    </p>
+                                </div>
+                                {% if room.unread_count %}
+                                <div class="unread-count">{{ room.unread_count }}</div>
+                                {% endif %}
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chat Area -->
+        <div class="col-md-8 col-lg-9 p-0 d-flex flex-column">
+            <!-- Chat Header -->
+            <div class="p-3 chat-header d-flex align-items-center">
+                <div class="position-relative me-3">
+                    <img src="https://via.placeholder.com/40" class="rounded-circle" alt="Contact">
+                    <span class="online-dot"></span>
+                </div>
+                <div>
+                    <h5 class="mb-0" id="current-chat-name">Select a chat</h5>
+                    <small class="text-muted" id="current-chat-status">Online</small>
+                </div>
+                <div class="ms-auto">
+                    <button class="btn btn-light">
+                        <i class="fas fa-phone-alt"></i>
+                    </button>
+                    <button class="btn btn-light">
+                        <i class="fas fa-video"></i>
+                    </button>
+                    <button class="btn btn-light">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Messages -->
+            <div class="flex-grow-1 chat-messages" id="chat-messages">
+                <!-- Messages will be loaded here -->
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-comments fa-3x mb-3"></i>
+                    <p>Select a chat to start messaging</p>
+                </div>
+            </div>
+            
+            <!-- Message Input -->
+            <div class="p-3 message-input">
+                <div class="d-flex align-items-center">
+                    <button class="btn btn-light me-2">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <div class="flex-grow-1 position-relative">
+                        <input type="text" class="form-control rounded-pill" id="message-input" placeholder="Type a message" >
+                        <button class="btn position-absolute end-0 top-0" id="emoji-btn">
+                            <i class="far fa-smile"></i>
+                        </button>
+                    </div>
+                    <button class="btn btn-light ms-2" id="attachment-btn">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                    <button class="btn btn-success ms-2 rounded-circle" id="send-btn" >
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<audio id="notification-sound" src="{% static 'sounds/notification-bell-sound-376888.mp3' %}" preload="auto"></audio>
+
+
+<!-- Add this toast container somewhere in your HTML, e.g., just before </body> -->
+<div id="notification-toast" style="display:none; position:fixed; bottom:30px; right:30px; background:#333; color:#fff; padding:16px 24px; border-radius:8px; z-index:9999; box-shadow:0 2px 8px rgba(0,0,0,0.2);"></div>
+
+<!-- Add this button where you want in your HTML, e.g. below the chat header -->
+<button id="test-notification-btn" class="btn btn-warning m-3">Test Notification</button>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const ws = new WebSocket("wss://django-chat-backend.onrender.com/ws/chat/" + roomId + "/");
+
+    $(document).ready(function() {
+        const currentUser = {
+            id: "{{ request.user.id }}",
+            username: "{{ request.user.username }}"
+        };
+        
+        let chatSocket = null;
+        let currentRoomId = null;
+        let typingTimer = null;
+        const typingTimeout = 1000; // 1 second
+        
+        // Request notification permission
+        if ("Notification" in window && Notification.permission !== "granted") {
+            Notification.requestPermission();
+        }
+        
+        // Initialize WebSocket connection for a room
+        function connectToRoom(roomId) {
+            if (chatSocket) {
+                chatSocket.close();
+            }
+            
+            chatSocket = new WebSocket(
+                'ws://' + window.location.host + 
+                '/ws/chat/' + roomId + '/'
+            );
+            
+            chatSocket.onopen = function(e) {
+                console.log('WebSocket connection established');
+                $('#message-input').prop('disabled', false);
+                $('#send-btn').prop('disabled', false);
+            };
+            
+            chatSocket.onmessage = function(e) {
+                const data = JSON.parse(e.data);
+
+                if (data.type === 'chat_message') {
+                    addMessage(data.message);
+                } else if (data.type === 'typing') {
+                    showTypingIndicator(data.user_id, data.username, data.is_typing);
+                } else if (data.type === 'notification') {
+                    showNotification(data.message, data.room_id);
+                }
+
+            };
+            
+            chatSocket.onclose = function(e) {
+                console.error('Chat socket closed unexpectedly');
+            };
+            
+            chatSocket.onerror = function(e) {
+                console.error('WebSocket error:', e);
+            };
+        }
+        
+        // Add a message to the chat
+        function addMessage(message) {
+            const isSent = message.sender.id.toString() === currentUser.id;
+            const messageClass = isSent ? 'message-sent' : 'message-received';
+            
+            const messageElement = `
+                <div class="message ${messageClass}">
+                    <div class="fw-bold">${message.sender.username}</div>
+                    <div>${message.content}</div>
+                    <div class="text-end text-muted" style="font-size: 0.7rem;">
+                        ${new Date(message.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </div>
+                </div>
+            `;
+            
+            $('#chat-messages').append(messageElement);
+            scrollToBottom();
+        }
+        
+        // Show typing indicator
+        function showTypingIndicator(userId, username, isTyping) {
+            const indicatorId = `typing-${userId}`;
+            const existingIndicator = $(`#${indicatorId}`);
+            
+            if (isTyping) {
+                if (existingIndicator.length === 0) {
+                    const indicator = `
+                        <div class="typing-indicator" id="${indicatorId}">
+                            <span>${username} is typing...</span>
+                        </div>
+                    `;
+                    $('#chat-messages').append(indicator);
+                    scrollToBottom();
+                }
+            } else {
+                existingIndicator.remove();
+            }
+        }
+        
+        // Send message via WebSocket
+        function sendMessage() {
+            console.log('send msg');
+            
+            const messageInput = $('#message-input');
+            const message = messageInput.val().trim();
+            
+            if (message && chatSocket && currentRoomId) {
+                chatSocket.send(JSON.stringify({
+                    'type': 'chat_message',
+                    'content': message,
+                    'sender_id': currentUser.id,
+                    'room_id': currentRoomId
+                }));
+                
+                messageInput.val('');
+            }
+        }
+        
+        // Send typing indicator
+        function sendTypingIndicator(isTyping) {
+            if (chatSocket && currentRoomId) {
+                chatSocket.send(JSON.stringify({
+                    'type': 'typing',
+                    'is_typing': isTyping
+                }));
+            }
+        }
+        
+        // Scroll to bottom of messages
+        function scrollToBottom() {
+            const messages = $('#chat-messages');
+            messages.scrollTop(messages[0].scrollHeight);
+        }
+        
+        // Show notification
+        function showNotification(message, roomId = null) {
+    // 1. Show in-app toast
+    const toast = $('#notification-toast');
+    toast.text(message).fadeIn(200);
+    setTimeout(() => { toast.fadeOut(400); }, 2500);
+
+    // 2. Play notification sound
+    const audio = document.getElementById('notification-sound');
+    if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch((e) => {
+            console.warn("Audio playback failed:", e);
+        });
+    }
+
+    // 3. Show browser/system notification
+    if ("Notification" in window && Notification.permission === "granted") {
+        const notification = new Notification("New Message", {
+            body: message,
+            icon: "https://via.placeholder.com/50", // Change this to your app logo
+            tag: "chat-message",
+            data: { roomId: roomId }
+        });
+
+        notification.onclick = function (event) {
+            event.preventDefault();
+
+            // Focus the window
+            if (window.focus) {
+                window.focus();
+            }
+
+            // Navigate to the room (simulate click)
+            if (roomId) {
+                const target = $(`[data-room-id='${roomId}']`);
+                if (target.length) {
+                    target.trigger('click');
+                }
+            }
+        };
+    }
+}
+
+        
+        // Event Listeners
+        $('#send-btn').click(sendMessage);
+
+        $('#test-notification-btn').click(function() {
+            showNotification("This is a test notification!");
+        });
+        
+        $('#message-input').keypress(function(e) {
+            if (e.which === 13) { // Enter key
+                sendMessage();
+                return false;
+            }
+        });
+        
+        $('#message-input').on('input', function() {
+            if (!typingTimer) {
+                sendTypingIndicator(true);
+            }
+            
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(function() {
+                sendTypingIndicator(false);
+                typingTimer = null;
+            }, typingTimeout);
+        });
+        
+        $('.contact-item').click(function(e) {
+            e.preventDefault();
+            const roomId = $(this).data('room-id');
+            const roomName = $(this).find('h6').text();
+            
+            currentRoomId = roomId;
+            $('#current-chat-name').text(roomName);
+            $('#chat-messages').empty();
+            
+            // Load previous messages
+            $.get(`/api/chatrooms/${roomId}/messages/`, function(messages) {
+                messages.forEach(message => addMessage(message));
+                scrollToBottom();
+            });
+            
+            connectToRoom(roomId);
+        });
+        
+        $('#logout-btn').click(function() {
+            window.location.href = "{% url 'logout' %}";
+        });
+    });
+</script>
+{% endblock %}
