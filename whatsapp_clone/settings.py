@@ -46,7 +46,9 @@ TEMPLATES = [
         },
     },
 ]
-
+CSRF_TRUSTED_ORIGINS = [
+    'https://bcef07520790.ngrok-free.app',  # replace with your actual ngrok URL
+]
 WSGI_APPLICATION = 'whatsapp_clone.wsgi.application'
 ASGI_APPLICATION = 'whatsapp_clone.asgi.application'
 

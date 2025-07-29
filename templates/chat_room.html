@@ -146,7 +146,7 @@
 
 {% block scripts %}
 <script>
-    const ws = new WebSocket("wss://django-chat-backend.onrender.com/ws/chat/" + roomId + "/");
+    const ws = new WebSocket("wss://django-chat-backend.onrender.com/ws/chat/" + 1 + "/");
 
     $(document).ready(function() {
         const currentUser = {
@@ -171,7 +171,8 @@
             }
             
             chatSocket = new WebSocket(
-                'ws://' + window.location.host + 
+                (window.location.protocol === "https:" ? "wss://" : "ws://") +
+                window.location.host +
                 '/ws/chat/' + roomId + '/'
             );
             
