@@ -187,10 +187,16 @@
 
                 if (data.type === 'chat_message') {
                     addMessage(data.message);
+                    if (data.message.sender.id.toString() !== currentUser.id) {
+                        showNotification(data.message.content, data.message.room_id);
+                    }
                 } else if (data.type === 'typing') {
                     showTypingIndicator(data.user_id, data.username, data.is_typing);
                 } else if (data.type === 'notification') {
-                    showNotification(data.message, data.room_id);
+                    // Optional: Only show notification if not sender
+                    if (!data.sender_id || data.sender_id.toString() !== currentUser.id) {
+                        showNotification(data.message, data.room_id);
+                    }
                 }
 
             };
@@ -280,12 +286,7 @@
         
         // Show notification
         function showNotification(message, roomId = null) {
-    // 1. Show in-app toast
-    const toast = $('#notification-toast');
-    toast.text(message).fadeIn(200);
-    setTimeout(() => { toast.fadeOut(400); }, 2500);
-
-    // 2. Play notification sound
+    // Play notification sound
     const audio = document.getElementById('notification-sound');
     if (audio) {
         audio.currentTime = 0;
@@ -294,29 +295,21 @@
         });
     }
 
-    // 3. Show browser/system notification
+    // Show browser/system notification
     if ("Notification" in window && Notification.permission === "granted") {
         const notification = new Notification("New Message", {
             body: message,
-            icon: "https://via.placeholder.com/50", // Change this to your app logo
+            icon: "https://via.placeholder.com/50",
             tag: "chat-message",
             data: { roomId: roomId }
         });
 
         notification.onclick = function (event) {
             event.preventDefault();
-
-            // Focus the window
-            if (window.focus) {
-                window.focus();
-            }
-
-            // Navigate to the room (simulate click)
+            if (window.focus) window.focus();
             if (roomId) {
                 const target = $(`[data-room-id='${roomId}']`);
-                if (target.length) {
-                    target.trigger('click');
-                }
+                if (target.length) target.trigger('click');
             }
         };
     }
